@@ -11,7 +11,6 @@ Requirements
 ------------
 Perl         The Perl Programming Language
 sox          Sound eXchange, sound processing program
-mpg123       MPEG Audio Player and decoder
 libttspico	 SVOX Pico TTS engine
 picospeaker	 Command line client for Pico TTS
 
