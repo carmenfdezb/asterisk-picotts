@@ -1,8 +1,9 @@
 #!/usr/bin/env perl
 
 #
-# AGI script that uses Google's translate text to speech engine.
+# AGI script that uses the SVOX Pico TTS text to speech engine.
 #
+# Copyright (C) 2015, Steven Mirabito <smirabito@csh.rit.edu>
 # Copyright (C) 2011 - 2015, Lefteris Zafiris <zaf.000@gmail.com>
 #
 # This program is free software, distributed under the terms of
@@ -12,21 +13,21 @@
 # -----
 # Usage
 # -----
-# agi(googletts.agi,"text",[language],[intkey],[speed]): This will invoke the Google TTS
+# agi(picotts.agi,"text",[language],[intkey],[speed]): This will invoke the Pico TTS
 # engine, render the text string to speech and play it back to the user.
 # If 'intkey' is set the script will wait for user input. Any given interrupt keys will
 # cause the playback to immediately terminate and the dialplan to proceed to the
 # matching extension (this is mainly for use in IVR, see README for examples).
-# If 'speed' is set the speech rate is altered by that factor (defaults to 1.2).
 #
-# The script contacts google's TTS service in order to get the voice data
+# The script invokes PicoSpeaker in order to get the voice data,
 # which then stores in a local cache (by default /tmp/) for future use.
 #
 # Parameters like default language, sample rate, caching and cache dir
 # can be set up by altering the following variables:
+#
 # Default langeuage: $lang
-# Sample rate:       $samplerate
-# Speed factor:      $speed
+# Speech rate:       $rate
+# Voice pitch:       $pitch
 # Chace:             $usecache
 # Chache directory:  $cachedir
 # SoX Version:       $sox_ver
@@ -39,9 +40,6 @@ use File::Temp qw(tempfile);
 use File::Copy qw(move);
 use File::Path qw(mkpath);
 use Digest::MD5 qw(md5_hex);
-use URI::Escape;
-use LWP::UserAgent;
-use LWP::ConnCache;
 $| = 1;
 
 # ----------------------------- #
@@ -50,8 +48,11 @@ $| = 1;
 # Default language              #
 my $lang = "en-US";
 
-# Output speed factor           #
-my $speed = 1;
+# Rate of speech (-90 to 9900)  #
+my $rate = 0;
+
+# Voice pitch (-79 to 39)       #
+my $pitch = 0;
 
 # Use of cache mechanism        #
 my $usecache = 1;
@@ -59,13 +60,9 @@ my $usecache = 1;
 # Cache directory path          #
 my $cachedir = "/tmp";
 
-# Output audio sample rate      #
-# Leave blank to auto-detect    #
-my $samplerate = "";
-
 # SoX Version                   #
 # Leave blank to auto-detect    #
-my $sox_ver = "";
+my $sox_ver = "14";
 
 # Verbose debugging messages    #
 my $debug = 0;
@@ -77,13 +74,12 @@ my @text;
 my $fh;
 my $tmpname;
 my $fexten;
+my $sox;
+my $mpg123;
 my $intkey  = "";
 my $tmpdir  = "/tmp";
 my $maxlen  = 4096;
 my $timeout = 10;
-my $url     = "https://translate.google.com/translate_tts";
-my $sox     = `/usr/bin/which sox`;
-my $mpg123  = `/usr/bin/which mpg123`;
 
 # Store AGI input #
 ($AGI{arg_1}, $AGI{arg_2}, $AGI{arg_3}, $AGI{arg_4}) = @ARGV;
@@ -93,11 +89,6 @@ while (<STDIN>) {
 	$AGI{$1} = $2 if (/^agi_(\w+)\:\s+(.*)$/);
 }
 my $name = " -- $AGI{request}:";
-
-# Abort if required programs not found. #
-die "$name sox or mpg123 is missing. Aborting.\n" if (!$sox || !$mpg123);
-
-chomp($sox, $mpg123);
 
 # Sanitising input #
 $AGI{arg_1} = decode('utf8', $AGI{arg_1});
@@ -149,21 +140,8 @@ if ($result[0] == 4) {
 	}
 }
 
-# Setting filename extension according to sample rate. #
-if    (!$samplerate)         { ($fexten, $samplerate) = detect_format(); }
-elsif ($samplerate == 12000) { $fexten = "sln12"; }
-elsif ($samplerate == 16000) { $fexten = "sln16"; }
-elsif ($samplerate == 32000) { $fexten = "sln32"; }
-elsif ($samplerate == 44100) { $fexten = "sln44"; }
-elsif ($samplerate == 48000) { $fexten = "sln48"; }
-else                         { ($fexten, $samplerate) = ("sln", 8000); }
-
-# Initialise User angent #
-my $ua = LWP::UserAgent->new(ssl_opts => {verify_hostname => 1});
-$ua->agent("Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.107 Safari/537.36");
-$ua->env_proxy;
-$ua->conn_cache(LWP::ConnCache->new());
-$ua->timeout($timeout);
+# Set file extension #
+$fexten = "wav";
 
 for (my $i=0; $i < $lines; $i++) {
 	my $filename;
@@ -187,31 +165,35 @@ for (my $i=0; $i < $lines; $i++) {
 			next;
 		}
 	}
-	$line = uri_escape($line);
-	warn "$name URL passed: $url?ie=UTF-8&q=$line&tl=$lang&total=$lines&idx=$i&client=t\n" if ($debug);
 
-	# Hnadle interrupts #
+	# Handle interrupts #
 	$SIG{'INT'} = \&int_handler;
 	$SIG{'HUP'} = \&int_handler;
 
-	($fh, $tmpname) = tempfile("ggl_XXXXXX", DIR => $tmpdir, UNLINK => 1);
-	my $ua_request = HTTP::Request->new('GET' => "$url?ie=UTF-8&q=$line&tl=$lang&total=$lines&idx=$i&client=t");
-	$ua_request->header(
-		'Accept'  => 'audio/webm,audio/ogg,audio/wav,audio/*;q=0.9,application/ogg;q=0.7,video/*;q=0.6,*/*;q=0.5',
-		'Referer' => 'https://translate.google.co.uk/',
-		'Accept-Language' => 'en-US,en;q=0.5',
-	);
-	my $ua_response = $ua->request($ua_request, $tmpname);
-	die "$name Failed to fetch file.\n" unless ($ua_response->is_success);
-
+	($fh, $tmpname) = tempfile("pico_XXXXXX", DIR => $tmpdir, UNLINK => 1);
+	
+	# Detect required programs #
+	if (!$sox || !$mpg123 || !$picospeaker) {
+		$sox    = `/usr/bin/which sox`;
+		$mpg123 = `/usr/bin/which mpg123`;
+		$picospeaker = `/usr/bin/which picospeaker`;
+		# Abort if required programs not found. #
+		die "$name sox or mpg123 or picospeaker is missing. Aborting.\n" if (!$sox || !$mpg123 || !$picospeaker);
+		chomp($sox, $mpg123, $picospeaker);
+	}
+	if (!$sox_ver) {
+		$sox_ver = (system("$sox --version > /dev/null 2>&1") == 0) ? 14 : 12;
+		warn "$name Found sox version $sox_ver in: $sox, mpg123 in: $mpg123, picospeaker in: $picospeaker\n" if ($debug);
+	}
+	
+	# Invoke picospeaker, which in turn will configure and call Pico TTS #
+	system($picospeaker, "-l", $lang, "-r", $rate, "-p", $pitch, "-o", $tmpname) == 0
+		or die "$name $picospeaker failed: $?\n";
+	
 	# Convert mp3 file to 16bit 8Khz or 16kHz mono raw #
 	system($mpg123, "-q", "-w", "$tmpname.wav", $tmpname) == 0
 		or die "$name $mpg123 failed: $?\n";
-	# Detect sox version #
-	if (!$sox_ver) {
-		$sox_ver = (system("$sox --version > /dev/null 2>&1") == 0) ? 14 : 12;
-		warn "$name Found sox version $sox_ver in: $sox, mpg123 in: $mpg123\n" if ($debug);
-	}
+
 	my @soxargs = get_sox_args("$tmpname.wav", "$tmpname.$fexten");
 	system(@soxargs) == 0 or die "$name $sox failed: $?\n";
 	unlink "$tmpname.wav";
@@ -261,22 +243,6 @@ sub playback {
 		warn "$name Failed to play $file.\n";
 	}
 	return $response[0];
-}
-
-sub detect_format {
-# Detect the sound format used #
-	my @format;
-	print "GET FULL VARIABLE \${CHANNEL(audionativeformat)}\n";
-	my @reply = checkresponse();
-	for ($reply[1]) {
-		if    (/(silk|sln)12/)                    { @format = ("sln12", 12000); }
-		elsif (/(speex|slin|silk)16|g722|siren7/) { @format = ("sln16", 16000); }
-		elsif (/(speex|slin|celt)32|siren14/)     { @format = ("sln32", 32000); }
-		elsif (/(celt|slin)44/)                   { @format = ("sln44", 44100); }
-		elsif (/(celt|slin)48/)                   { @format = ("sln48", 48000); }
-		else                                      { @format = ("sln",    8000); }
-	}
-	return @format;
 }
 
 sub get_sox_args {
