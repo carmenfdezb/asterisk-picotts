@@ -4,13 +4,10 @@
 # Author: Steven Mirabito <smirabito@csh.rit.edu>
 
 # Check architechure
-arch=`uname -m`
-
-if [ "$arch" == "x86_64" ]
-then
-    pkg-arch = "amd64"
+if [ $(uname -m) == 'x86_64' ]; then
+    pkgarch="amd64"
 else
-    pkg-arch = "i386"
+    pkgarch="i386"
 fi
 
 # Get work directories set up
@@ -18,7 +15,7 @@ cd /usr/src
 mkdir libttspico
 
 # Download and extract Pico TTS libraries
-wget http://mirrors.kernel.org/ubuntu/pool/multiverse/s/svox/libttspico0_1.0%2bgit20130326-3_${pkg-arch}.deb
+wget http://mirrors.kernel.org/ubuntu/pool/multiverse/s/svox/libttspico0_1.0%2bgit20130326-3_${pkgarch}.deb
 ar x libttspico0_1.0+git20130326-3_${pkg-arch}.deb data.tar.xz
 tar -xf data.tar.xz -C "libttspico"
 rm -f data.tar.xz
@@ -30,7 +27,7 @@ tar -xf data.tar.xz -C "libttspico"
 rm -f data.tar.xz
 
 # Download and extract Pico TTS utilities (pico2wave)
-wget http://mirrors.kernel.org/ubuntu/pool/multiverse/s/svox/libttspico-utils_1.0%2bgit20130326-3_${pkg-arch}.deb
+wget http://mirrors.kernel.org/ubuntu/pool/multiverse/s/svox/libttspico-utils_1.0%2bgit20130326-3_${pkgarch}.deb
 ar x libttspico-utils_1.0+git20130326-3_${pkg-arch}.deb data.tar.xz
 tar -xf data.tar.xz -C "libttspico"
 rm -f data.tar.xz
