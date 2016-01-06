@@ -16,7 +16,7 @@ mkdir libttspico
 
 # Download and extract Pico TTS libraries
 wget http://mirrors.kernel.org/ubuntu/pool/multiverse/s/svox/libttspico0_1.0%2bgit20130326-3_${pkgarch}.deb
-ar x libttspico0_1.0+git20130326-3_${pkg-arch}.deb data.tar.xz
+ar x libttspico0_1.0+git20130326-3_${pkgarch}.deb data.tar.xz
 tar -xf data.tar.xz -C "libttspico"
 rm -f data.tar.xz
 
@@ -28,7 +28,7 @@ rm -f data.tar.xz
 
 # Download and extract Pico TTS utilities (pico2wave)
 wget http://mirrors.kernel.org/ubuntu/pool/multiverse/s/svox/libttspico-utils_1.0%2bgit20130326-3_${pkgarch}.deb
-ar x libttspico-utils_1.0+git20130326-3_${pkg-arch}.deb data.tar.xz
+ar x libttspico-utils_1.0+git20130326-3_${pkgarch}.deb data.tar.xz
 tar -xf data.tar.xz -C "libttspico"
 rm -f data.tar.xz
 
