@@ -44,6 +44,9 @@ mv libttspico/usr/share/pico /usr/share/
 mv libttspico/usr/share/doc/* /usr/share/doc/
 mv libttspico/usr/share/man/man1/* /usr/share/man/man1/
 
+# Load new libraries
+ldconfig
+
 # Install picospeaker
 cd /usr/src
 git clone git://github.com/the-kyle/picospeaker.git picospeaker
