@@ -44,30 +44,30 @@ sample dialplan code for your extensions.conf
 
 exten => 1234,1,Answer()
     ;;Play mesage in English:
-exten => 1234,n,agi(picotts.agi,"This is a simple google text to speech test in english.",en)
+exten => 1234,n,agi(picotts.agi,"This is a simple google text to speech test in english.",en-US)
     ;;Play message in Spanish
-exten => 1234,n,agi(picotts.agi,"Esta es una simple prueba en español.",es)
-    ;;Play message in Greek
-exten => 1234,n,agi(picotts.agi,"Αυτό είναι ένα απλό τέστ στα ελληνικά.",el)
+exten => 1234,n,agi(picotts.agi,"Esta es una simple prueba en español.",es-ES)
+    ;;Play message in French
+exten => 1234,n,agi(picotts.agi,"Ceci est un test simple en français.",fr-FR)
 
 ; A simple dynamic IVR using Pico TTS
 
 [my_ivr]
 exten => s,1,Answer()
 exten => s,n,Set(TIMEOUT(digit)=5)
-exten => s,n,agi(picotts.agi,"Welcome to my small interactive voice response menu.",en)
+exten => s,n,agi(picotts.agi,"Welcome to my small interactive voice response menu.",en-US)
     ;;Wait for digit:
-exten => s,n(start),agi(picotts.agi,"Please dial a digit.",en,any)
+exten => s,n(start),agi(picotts.agi,"Please dial a digit.",en-US,any)
 exten => s,n,WaitExten()
 
     ;;PLayback the name of the digit and wait for another one:
-exten => _X,1,agi(picotts.agi,"You just pressed ${EXTEN}. Try another one please.",en,any)
+exten => _X,1,agi(picotts.agi,"You just pressed ${EXTEN}. Try another one please.",en-US,any)
 exten => _X,n,WaitExten()
 
-exten => i,1,agi(picotts.agi,"Invalid extension.",en)
+exten => i,1,agi(picotts.agi,"Invalid extension.",en-US)
 exten => i,n,goto(s,start)
 
-exten => t,1,agi(picotts.agi,"Request timed out.",en)
+exten => t,1,agi(picotts.agi,"Request timed out.",en-US)
 exten => t,n,goto(s,start)
 
 exten => h,1,Hangup()
