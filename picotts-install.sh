@@ -2,12 +2,28 @@
 
 # Installer for SVOX Pico TTS on non-Debian platforms
 # Author: Steven Mirabito <smirabito@csh.rit.edu>
+# Patches from:
+#   @jerrm from PIAF Forum and
+#    Ward Mundy & Associates LLC, 7-7-2017 and 11-04-2017
+# http://incrediblepbx.com/picotts.tar.gz
 
 # Check architechure
 if [ $(uname -m) == 'x86_64' ]; then
+ if [[ "$release" = "7" ]]; then
     pkgarch="amd64"
+ else
+    pkgarch="i386"
+    yum -y install popt.i686
+ fi
 else
     pkgarch="i386"
+fi
+
+test=`cat /etc/redhat-release | grep 6`
+if [[ -z $test ]]; then
+ release="7"
+else
+ release="6"
 fi
 
 # Get work directories set up
@@ -52,3 +68,11 @@ cd /usr/src
 git clone git://github.com/the-kyle/picospeaker.git picospeaker
 install -D -m755 picospeaker/picospeaker /usr/bin/picospeaker
 rm -rf picospeaker
+
+# CentOS 7 patch
+if [[ "$release" = "7" ]]; then
+ mv /usr/lib/libttspico.so.0* /usr/lib64/
+ ln -s /usr/lib64/libttspico.so.0 /usr/lib/libttspico.so.0
+else
+ ln -s /usr/lib64/libttspico.so.0 /usr/lib/libttspico.so.0
+fi
