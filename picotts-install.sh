@@ -49,6 +49,6 @@ ldconfig
 
 # Install picospeaker
 cd /usr/src
-git clone git://github.com/the-kyle/picospeaker.git picospeaker
+git clone https://gitlab.com/ky1e/picospeaker.git picospeaker
 install -D -m755 picospeaker/picospeaker /usr/bin/picospeaker
 rm -rf picospeaker
