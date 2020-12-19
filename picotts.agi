@@ -25,7 +25,7 @@
 # Parameters like default language, sample rate, caching and cache dir
 # can be set up by altering the following variables:
 #
-# Default langeuage: $lang
+# Default language:  $lang
 # Speech rate:       $rate
 # Voice pitch:       $pitch
 # Chace:             $usecache
@@ -178,7 +178,7 @@ for (my $i=0; $i < $lines; $i++) {
 	$SIG{'HUP'} = \&int_handler;
 
 	($fh, $tmpname) = tempfile("pico_XXXXXX", DIR => $tmpdir, UNLINK => 1);
-	
+
 	# Detect required programs #
 	if (!$sox || !$pico2wave) {
 		$sox    = `/usr/bin/which sox`;
@@ -195,7 +195,7 @@ for (my $i=0; $i < $lines; $i++) {
 	# Convert text to speech and store it in a temporary file #
 	system($pico2wave, "-l", $lang, "-w", "$tmpname.wav", $line) == 0
 		or die "$name $pico2wave failed: $?\n";
-	
+
 	# Convert wav file to 16bit 8Khz or 16kHz mono raw #
 	my @soxargs = get_sox_args("$tmpname.wav", "$tmpname.$fexten");
 	system(@soxargs) == 0 or die "$name $sox failed: $?\n";
