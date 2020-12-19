@@ -61,6 +61,14 @@ my $cachedir = "/tmp";
 # Leave blank to auto-detect    #
 my $samplerate = "";
 
+# Output file into variable     #
+# set 1 if need not play file   #
+# the audio and the return a    #
+# Asterisk variable. Usefull if #
+# need play with the file after #
+# this need $usecache = 1       #
+my $returnvarible = 0;
+
 # SoX Version                   #
 # Leave blank to auto-detect    #
 my $sox_ver = "14";
@@ -83,7 +91,7 @@ my $maxlen  = 4096;
 my $timeout = 10;
 
 # Store AGI input #
-($AGI{arg_1}, $AGI{arg_2}, $AGI{arg_3}, $AGI{arg_4}) = @ARGV;
+($AGI{arg_1}, $AGI{arg_2}, $AGI{arg_3}, $AGI{arg_4}, $AGI{arg_5}) = @ARGV;
 while (<STDIN>) {
 	chomp;
 	last if (!length);
@@ -130,6 +138,14 @@ if ($usecache && ((length($cachedir) + 32 + 6) < $maxlen)) {
 	$usecache = 0;
 }
 
+if (length($AGI{arg_5})) {
+	if ($usecache) {
+		$returnvarible = $AGI{arg_5};
+	} else {
+		warn "return_variable need usercache = 1.\n";
+	}
+}
+
 # Answer channel if not already answered #
 print "CHANNEL STATUS\n";
 my @result = checkresponse();
@@ -166,7 +182,10 @@ for (my $i=0; $i < $lines; $i++) {
 		# Stream file from cache if it exists #
 		if (-r "$cachedir/$filename.$fexten") {
 			warn "$name File already in cache.\n" if ($debug);
-			$res = playback("$cachedir/$filename", $intkey);
+
+			if ($returnvarible) {$res = return_variable("$cachedir/$filename");}
+			else { $res = playback("$cachedir/$filename", $intkey);}
+
 			die if ($res < 0);
 			last if ($res > 0);
 			next;
@@ -202,11 +221,12 @@ for (my $i=0; $i < $lines; $i++) {
 	unlink "$tmpname.wav";
 
 	# Playback and save file in cache #
-	$res = playback($tmpname, $intkey);
+	if (!$returnvarible) { $res = playback($tmpname, $intkey);}
 	die if ($res < 0);
 	if ($usecache) {
 		warn "$name Saving file $filename to cache\n" if ($debug);
 		move("$tmpname.$fexten", "$cachedir/$filename.$fexten");
+		if ($returnvarible) { $res = return_variable("$cachedir/$filename");}
 	} else {
 		unlink "$tmpname.$fexten";
 	}
@@ -245,6 +265,14 @@ sub playback {
 	} elsif ($response[0] == -1) {
 		warn "$name Failed to play $file.\n";
 	}
+	return $response[0];
+}
+
+sub return_variable {
+	my ($file) = @_;
+	my @response;
+	print "SET VARIABLE $returnvarible $file\n";
+	@response = checkresponse();
 	return $response[0];
 }
 
